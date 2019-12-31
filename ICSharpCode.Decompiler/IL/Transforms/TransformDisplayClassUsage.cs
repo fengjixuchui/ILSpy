@@ -21,6 +21,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using ICSharpCode.Decompiler.TypeSystem;
+using ICSharpCode.Decompiler.Util;
 
 namespace ICSharpCode.Decompiler.IL.Transforms
 {
@@ -45,6 +46,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 		ILTransformContext context;
 		readonly Dictionary<ILVariable, DisplayClass> displayClasses = new Dictionary<ILVariable, DisplayClass>();
 		readonly List<ILInstruction> instructionsToRemove = new List<ILInstruction>();
+		readonly MultiDictionary<IField, StObj> fieldAssignmentsWithVariableValue = new MultiDictionary<IField, StObj>();
 
 		public void Run(ILFunction function, ILTransformContext context)
 		{
@@ -59,12 +61,18 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 					foreach (var v in f.Variables.ToArray()) {
 						if (context.Settings.YieldReturn && HandleMonoStateMachine(function, v, decompilationContext, f))
 							continue;
-						if ((context.Settings.AnonymousMethods || context.Settings.ExpressionTrees) && IsClosure(v, out ITypeDefinition closureType, out var inst)) {
+						if ((context.Settings.AnonymousMethods || context.Settings.ExpressionTrees) && IsClosure(context, v, out ITypeDefinition closureType, out var inst)) {
+							if (!CanRemoveAllReferencesTo(context, v))
+								continue;
+							instructionsToRemove.Add(inst);
 							AddOrUpdateDisplayClass(f, v, closureType, inst, localFunctionClosureParameter: false);
+							continue;
 						}
 						if (context.Settings.LocalFunctions && f.Kind == ILFunctionKind.LocalFunction && v.Kind == VariableKind.Parameter && v.Index > -1 && f.Method.Parameters[v.Index.Value] is IParameter p && LocalFunctionDecompiler.IsClosureParameter(p, decompilationContext)) {
 							AddOrUpdateDisplayClass(f, v, ((ByReferenceType)p.Type).ElementType.GetDefinition(), f.Body, localFunctionClosureParameter: true);
+							continue;
 						}
+						AnalyzeUseSites(v);
 					}
 				}
 				VisitILFunction(function);
@@ -79,7 +87,42 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			} finally {
 				instructionsToRemove.Clear();
 				displayClasses.Clear();
+				fieldAssignmentsWithVariableValue.Clear();
 				this.context = null;
+			}
+		}
+
+		private bool CanRemoveAllReferencesTo(ILTransformContext context, ILVariable v)
+		{
+			foreach (var use in v.LoadInstructions) {
+				if (use.Parent.MatchStLoc(out var targetVar) && !IsClosure(context, targetVar, out _, out _)) {
+					return false;
+				}
+			}
+			return true;
+		}
+
+		private void AnalyzeUseSites(ILVariable v)
+		{
+			foreach (var use in v.LoadInstructions) {
+				if (!(use.Parent?.Parent is Block))
+					continue;
+				if (use.Parent.MatchStFld(out _, out var f, out var value) && value == use) {
+					fieldAssignmentsWithVariableValue.Add(f, (StObj)use.Parent);
+				}
+				if (use.Parent.MatchStsFld(out f, out value) && value == use) {
+					fieldAssignmentsWithVariableValue.Add(f, (StObj)use.Parent);
+				}
+			}
+			foreach (var use in v.AddressInstructions) {
+				if (!(use.Parent?.Parent is Block))
+					continue;
+				if (use.Parent.MatchStFld(out _, out var f, out var value) && value == use) {
+					fieldAssignmentsWithVariableValue.Add(f, (StObj)use.Parent);
+				}
+				if (use.Parent.MatchStsFld(out f, out value) && value == use) {
+					fieldAssignmentsWithVariableValue.Add(f, (StObj)use.Parent);
+				}
 			}
 		}
 
@@ -110,30 +153,29 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			}
 		}
 
-		bool IsClosure(ILVariable variable, out ITypeDefinition closureType, out ILInstruction initializer)
+		internal static bool IsClosure(ILTransformContext context, ILVariable variable, out ITypeDefinition closureType, out ILInstruction initializer)
 		{
 			closureType = null;
 			initializer = null;
 			if (variable.IsSingleDefinition && variable.StoreInstructions.SingleOrDefault() is StLoc inst) {
 				initializer = inst;
-				if (IsClosureInit(inst, out closureType)) {
-					instructionsToRemove.Add(inst);
+				if (IsClosureInit(context, inst, out closureType)) {
 					return true;
 				}
 			}
 			closureType = variable.Type.GetDefinition();
-			if (context.Settings.LocalFunctions && closureType?.Kind == TypeKind.Struct && variable.HasInitialValue && IsPotentialClosure(this.context, closureType)) {
+			if (context.Settings.LocalFunctions && closureType?.Kind == TypeKind.Struct && variable.HasInitialValue && IsPotentialClosure(context, closureType)) {
 				initializer = LocalFunctionDecompiler.GetStatement(variable.AddressInstructions.OrderBy(i => i.StartILOffset).First());
 				return true;
 			}
 			return false;
 		}
 
-		bool IsClosureInit(StLoc inst, out ITypeDefinition closureType)
+		static bool IsClosureInit(ILTransformContext context, StLoc inst, out ITypeDefinition closureType)
 		{
 			if (inst.Value is NewObj newObj) {
 				closureType = newObj.Method.DeclaringTypeDefinition;
-				return closureType != null && IsPotentialClosure(this.context, newObj);
+				return closureType != null && IsPotentialClosure(context, newObj);
 			}
 			closureType = null;
 			return false;
@@ -276,18 +318,22 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 		protected internal override void VisitStObj(StObj inst)
 		{
 			inst.Value.AcceptVisitor(this);
-			if (IsParameterAssignment(inst, out var displayClass, out var field, out var parameter)) {
-				context.Step($"Detected parameter assignment {parameter.Name}", inst);
-				displayClass.Variables.Add((IField)field.MemberDefinition, parameter);
-				instructionsToRemove.Add(inst);
-			} else if (IsDisplayClassAssignment(inst, out displayClass, out field, out var variable)) {
-				context.Step($"Detected display-class assignment {variable.Name}", inst);
-				displayClass.Variables.Add((IField)field.MemberDefinition, variable);
-				instructionsToRemove.Add(inst);
-			} else {
-				inst.Target.AcceptVisitor(this);
-				EarlyExpressionTransforms.StObjToStLoc(inst, context);
+			if (inst.Parent is Block) {
+				if (IsParameterAssignment(inst, out var displayClass, out var field, out var parameter)) {
+					context.Step($"Detected parameter assignment {parameter.Name}", inst);
+					displayClass.Variables.Add((IField)field.MemberDefinition, parameter);
+					instructionsToRemove.Add(inst);
+					return;
+				}
+				if (IsDisplayClassAssignment(inst, out displayClass, out field, out var variable)) {
+					context.Step($"Detected display-class assignment {variable.Name}", inst);
+					displayClass.Variables.Add((IField)field.MemberDefinition, variable);
+					instructionsToRemove.Add(inst);
+					return;
+				}
 			}
+			inst.Target.AcceptVisitor(this);
+			EarlyExpressionTransforms.StObjToStLoc(inst, context);
 		}
 
 		protected internal override void VisitLdObj(LdObj inst)
@@ -321,6 +367,8 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 		{
 			parameter = null;
 			if (!IsDisplayClassFieldAccess(inst.Target, out var displayClassVar, out displayClass, out field))
+				return false;
+			if (fieldAssignmentsWithVariableValue[field].Count != 1)
 				return false;
 			if (!(inst.Value.MatchLdLoc(out var v) && v.Kind == VariableKind.Parameter && v.Function == currentFunction && v.Type.Equals(field.Type)))
 				return false;
