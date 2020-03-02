@@ -115,6 +115,22 @@ namespace ICSharpCode.ILSpy
 				MinimalCorlib.Instance);
 		}
 
+		ICompilation typeSystemWithOptions;
+		TypeSystemOptions currentTypeSystemOptions;
+
+		public ICompilation GetTypeSystemOrNull(TypeSystemOptions options)
+		{
+			if (typeSystemWithOptions != null && options == currentTypeSystemOptions)
+				return typeSystemWithOptions;
+			var module = GetPEFileOrNull();
+			if (module == null)
+				return null;
+			currentTypeSystemOptions = options;
+			return typeSystemWithOptions = new SimpleCompilation(
+				module.WithOptions(options | TypeSystemOptions.Uncached | TypeSystemOptions.KeepModifiers),
+				MinimalCorlib.Instance);
+		}
+
 		public AssemblyList AssemblyList => assemblyList;
 
 		public string FileName => fileName;
@@ -143,6 +159,8 @@ namespace ICSharpCode.ILSpy
 
 		public bool IsAutoLoaded { get; set; }
 
+		public string PdbFileOverride { get; set; }
+
 		PEFile LoadAssembly(object state)
 		{
 			MetadataReaderOptions options;
@@ -167,7 +185,8 @@ namespace ICSharpCode.ILSpy
 
 			if (DecompilerSettingsPanel.CurrentDecompilerSettings.UseDebugSymbols) {
 				try {
-					debugInfoProvider = DebugInfoUtils.LoadSymbols(module);
+					debugInfoProvider = DebugInfoUtils.FromFile(module, PdbFileOverride)
+						?? DebugInfoUtils.LoadSymbols(module);
 				} catch (IOException) {
 				} catch (UnauthorizedAccessException) {
 				} catch (InvalidOperationException) {

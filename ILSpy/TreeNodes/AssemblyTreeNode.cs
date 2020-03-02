@@ -139,10 +139,14 @@ namespace ICSharpCode.ILSpy.TreeNodes
 				// if we crashed on loading, then we don't have any children
 				return;
 			}
-			typeSystem = LoadedAssembly.GetTypeSystemOrNull();
+			typeSystem = LoadedAssembly.GetTypeSystemOrNull(DecompilerTypeSystem.GetOptions(new DecompilationOptions().DecompilerSettings));
 			var assembly = (MetadataModule)typeSystem.MainModule;
 			var metadata = module.Metadata;
 			this.Children.Add(new Metadata.MetadataTreeNode(module, this));
+			Decompiler.DebugInfo.IDebugInfoProvider debugInfo = LoadedAssembly.GetDebugInfoOrNull();
+			if (debugInfo is Decompiler.PdbProvider.PortableDebugInfoProvider ppdb) {
+				this.Children.Add(new Metadata.DebugMetadataTreeNode(module, ppdb.IsEmbedded, ppdb.Provider.GetMetadataReader(), this));
+			}
 			this.Children.Add(new ReferenceFolderTreeNode(module, this));
 			if (module.Resources.Any())
 				this.Children.Add(new ResourceListTreeNode(module));
