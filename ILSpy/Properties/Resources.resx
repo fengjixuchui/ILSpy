@@ -426,7 +426,7 @@
   <data name="Create" xml:space="preserve">
     <value>Create</value>
   </data>
-  <data name="List" xml:space="preserve">
+  <data name="NewList" xml:space="preserve">
     <value>New list</value>
   </data>
   <data name="SelectAssembliesOpen" xml:space="preserve">
@@ -851,5 +851,29 @@ Do you want to continue?</value>
     <value>This will remove "{0}" from the registry at "HKCU\Software\Classes\dllfile\shell\Open with ILSpy\command" and "HKCU\Software\Classes\exefile\shell\Open with ILSpy\command".
 
 Do you want to continue?</value>
+  </data>
+  <data name="DecompilerSettings.Ranges" xml:space="preserve">
+    <value>Ranges</value>
+  </data>
+  <data name="AddPreconfiguredList" xml:space="preserve">
+    <value>Add preconfigured list...</value>
+  </data>
+  <data name="R_ename" xml:space="preserve">
+    <value>R_ename</value>
+  </data>
+  <data name="RenameList" xml:space="preserve">
+    <value>Rename list</value>
+  </data>
+  <data name="CultureLabel" xml:space="preserve">
+    <value>Culture</value>
+  </data>
+  <data name="OpenSelfContainedExecutableMessage" xml:space="preserve">
+    <value>You are trying to open a single-file executable (app bundle). In order to work with this type of program, ILSpy will
+
+(i) show you a dialog to select a folder to extract the bundle to
+(ii) extract the assemblies (might take a few seconds)
+(iii) show you a dialog to select one or more of those extracted assemblies to decompile
+
+Do you want to proceed?</value>
   </data>
 </root>

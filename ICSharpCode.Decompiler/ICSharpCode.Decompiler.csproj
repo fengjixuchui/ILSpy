@@ -64,6 +64,7 @@
     <Compile Include="CSharp\OutputVisitor\GenericGrammarAmbiguityVisitor.cs" />
     <Compile Include="CSharp\RequiredNamespaceCollector.cs" />
     <Compile Include="CSharp\SequencePointBuilder.cs" />
+    <Compile Include="IL\Transforms\IndexRangeTransform.cs" />
     <Compile Include="CSharp\TranslatedStatement.cs" />
     <Compile Include="DebugInfo\KnownGuids.cs" />
     <Compile Include="Disassembler\DisassemblerSignatureTypeProvider.cs" />
@@ -271,7 +272,7 @@
     <Compile Include="CSharp\ExpressionBuilder.cs" />
     <Compile Include="CSharp\StatementBuilder.cs" />
     <Compile Include="CSharp\Transforms\AddCheckedBlocks.cs" />
-    <Compile Include="CSharp\Transforms\ConvertConstructorCallIntoInitializer.cs" />
+    <Compile Include="CSharp\Transforms\TransformFieldAndConstructorInitializers.cs" />
     <Compile Include="CSharp\Transforms\CustomPatterns.cs" />
     <Compile Include="CSharp\Transforms\IAstTransform.cs" />
     <Compile Include="CSharp\Transforms\IntroduceUnsafeModifier.cs" />
@@ -384,6 +385,7 @@
     <Compile Include="TypeSystem\Implementation\MetadataTypeDefinition.cs" />
     <Compile Include="TypeSystem\Implementation\MetadataTypeParameter.cs" />
     <Compile Include="TypeSystem\Implementation\SpecializedParameter.cs" />
+    <Compile Include="TypeSystem\Implementation\SyntheticRangeIndexer.cs" />
     <Compile Include="TypeSystem\Implementation\ThreeState.cs" />
     <Compile Include="TypeSystem\MetadataModule.cs" />
     <Compile Include="TypeSystem\ModifiedType.cs" />
