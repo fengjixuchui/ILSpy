@@ -149,14 +149,15 @@ namespace ICSharpCode.Decompiler.CSharp
 							new TransformArrayInitializers(),
 							new TransformCollectionAndObjectInitializers(),
 							new TransformExpressionTrees(),
+							new IndexRangeTransform(),
 							new NamedArgumentTransform(),
-							new UserDefinedLogicTransform(),
-							new IndexRangeTransform()
+							new UserDefinedLogicTransform()
 						),
 					}
 				},
 				new ProxyCallReplacer(),
 				new FixRemainingIncrements(),
+				new FixLoneIsInst(),
 				new CopyPropagation(),
 				new DelegateConstruction(),
 				new LocalFunctionDecompiler(),
@@ -164,6 +165,7 @@ namespace ICSharpCode.Decompiler.CSharp
 				new HighLevelLoopTransform(),
 				new ReduceNestingTransform(),
 				new IntroduceDynamicTypeOnLocals(),
+				new IntroduceNativeIntTypeOnLocals(),
 				new AssignVariableNames(),
 			};
 		}
