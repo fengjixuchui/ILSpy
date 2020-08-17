@@ -308,7 +308,7 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 		internal static bool VariableNeedsDeclaration(VariableKind kind)
 		{
 			switch (kind) {
-				case VariableKind.PinnedLocal:
+				case VariableKind.PinnedRegionLocal:
 				case VariableKind.Parameter:
 				case VariableKind.ExceptionLocal:
 				case VariableKind.ExceptionStackSlot:
@@ -468,6 +468,9 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 					if (v.ILVariable.IsRefReadOnly && type is ComposedType composedType && composedType.HasRefSpecifier) {
 						composedType.HasReadOnlySpecifier = true;
 					}
+					if (v.ILVariable.Kind == VariableKind.PinnedLocal) {
+						type.InsertChildAfter(null, new Comment("pinned", CommentType.MultiLine), Roles.Comment);
+					}
 					var vds = new VariableDeclarationStatement(type, v.Name, assignment.Right.Detach());
 					var init = vds.Variables.Single();
 					init.AddAnnotation(assignment.Left.GetResolveResult());
@@ -485,17 +488,7 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 					} else {
 						type = context.TypeSystemAstBuilder.ConvertType(v.Type);
 					}
-					string name;
-					// Variable is not used and discards are allowed, we can simplify this to 'out var _'.
-					// TODO : if there are no other (non-out) variables named '_' and type is 'var', we can simplify this to 'out _'.
-					// However, this needs overload resolution, so we currently cannot do that, as OR does not yet understand out var.
-					// (for the specific rules see https://github.com/dotnet/roslyn/blob/master/docs/features/discards.md)
-					if (context.Settings.Discards && v.ILVariable.LoadCount == 0 && v.ILVariable.StoreCount == 0 && v.ILVariable.AddressCount == 1) {
-						name = "_";
-					} else {
-						name = v.Name;
-					}
-					var ovd = new OutVarDeclarationExpression(type, name);
+					var ovd = new OutVarDeclarationExpression(type, v.Name);
 					ovd.Variable.AddAnnotation(new ILVariableResolveResult(ilVariable));
 					ovd.CopyAnnotationsFrom(dirExpr);
 					replacements.Add((dirExpr, ovd));
