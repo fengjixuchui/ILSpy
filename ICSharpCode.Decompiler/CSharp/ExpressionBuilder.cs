@@ -226,7 +226,7 @@ namespace ICSharpCode.Decompiler.CSharp
 
 		bool RequiresQualifier(IMember member, TranslatedExpression target)
 		{
-			if (HidesVariableWithName(member.Name))
+			if (settings.AlwaysQualifyMemberReferences || HidesVariableWithName(member.Name))
 				return true;
 			if (member.IsStatic)
 				return !IsCurrentOrContainingType(member.DeclaringTypeDefinition);
@@ -2061,7 +2061,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			// If references are missing member.IsStatic might not be set correctly.
 			// Additionally check target for null, in order to avoid a crash.
 			if (!memberStatic && target != null) {
-				if (nonVirtualInvocation && MatchLdThis(target) && memberDeclaringType.GetDefinition() != resolver.CurrentTypeDefinition) {
+				if (ShouldUseBaseReference()) {
 					return new BaseReferenceExpression()
 						.WithILInstruction(target)
 						.WithRR(new ThisResolveResult(memberDeclaringType, nonVirtualInvocation));
@@ -2095,6 +2095,17 @@ namespace ICSharpCode.Decompiler.CSharp
 				return new TypeReferenceExpression(ConvertType(memberDeclaringType))
 					.WithoutILInstruction()
 					.WithRR(new TypeResolveResult(memberDeclaringType));
+			}
+
+			bool ShouldUseBaseReference()
+			{
+				if (!nonVirtualInvocation)
+					return false;
+				if (!MatchLdThis(target))
+					return false;
+				if (memberDeclaringType.GetDefinition() == resolver.CurrentTypeDefinition)
+					return false;
+				return true;
 			}
 
 			bool MatchLdThis(ILInstruction inst)
@@ -3384,6 +3395,88 @@ namespace ICSharpCode.Decompiler.CSharp
 				invocation.Arguments.Add(Translate(arg, typeHint: paramType).ConvertTo(paramType, this, allowImplicitConversion: true));
 			}
 			return invocation.WithRR(new ResolveResult(inst.ReturnType)).WithILInstruction(inst);
+		}
+
+		protected internal override TranslatedExpression VisitDeconstructInstruction(DeconstructInstruction inst, TranslationContext context)
+		{
+			IType rhsType = inst.Pattern.Variable.Type;
+			var rhs = Translate(inst.Pattern.TestedOperand, rhsType);
+			rhs = rhs.ConvertTo(rhsType, this); // TODO allowImplicitConversion
+			var assignments = inst.Assignments.Instructions;
+			int assignmentPos = 0;
+			var inits = inst.Init;
+			int initPos = 0;
+
+			Dictionary<ILVariable, ILVariable> conversionMapping = new Dictionary<ILVariable, ILVariable>();
+
+			foreach (var conv in inst.Conversions.Instructions) {
+				if (!DeconstructInstruction.IsConversionStLoc(conv, out var outputVariable, out var inputVariable))
+					continue;
+				conversionMapping.Add(inputVariable, outputVariable);
+			}
+
+
+			var lhs = ConstructTuple(inst.Pattern);
+			return new AssignmentExpression(lhs, rhs)
+				.WithILInstruction(inst)
+				.WithRR(new ResolveResult(compilation.FindType(KnownTypeCode.Void)));
+
+			TupleExpression ConstructTuple(MatchInstruction matchInstruction)
+			{
+				var expr = new TupleExpression();
+				foreach (var subPattern in matchInstruction.SubPatterns.Cast<MatchInstruction>()) {
+					if (subPattern.IsVar) {
+						if (subPattern.HasDesignator) {
+							if (!conversionMapping.TryGetValue(subPattern.Variable, out ILVariable value)) {
+								value = subPattern.Variable;
+							}
+							expr.Elements.Add(ConstructAssignmentTarget(assignments[assignmentPos], value));
+							assignmentPos++;
+						} else
+							expr.Elements.Add(new IdentifierExpression("_"));
+					} else {
+						expr.Elements.Add(ConstructTuple(subPattern));
+					}
+				}
+				return expr;
+			}
+
+			TranslatedExpression ConstructAssignmentTarget(ILInstruction assignment, ILVariable value)
+			{
+				switch (assignment) {
+					case StLoc stloc:
+						Debug.Assert(stloc.Value.MatchLdLoc(value));
+						break;
+					case CallInstruction call:
+						for (int i = 0; i < call.Arguments.Count - 1; i++) {
+							ReplaceAssignmentTarget(call.Arguments[i]);
+						}
+						Debug.Assert(call.Arguments.Last().MatchLdLoc(value));
+						break;
+					case StObj stobj:
+						var target = stobj.Target;
+						while (target.MatchLdFlda(out var nestedTarget, out _))
+							target = nestedTarget;
+						ReplaceAssignmentTarget(target);
+						Debug.Assert(stobj.Value.MatchLdLoc(value));
+						break;
+					default:
+						throw new NotSupportedException();
+				}
+				var expr = Translate(assignment);
+				return expr.UnwrapChild(((AssignmentExpression)expr).Left);
+			}
+
+			void ReplaceAssignmentTarget(ILInstruction target)
+			{
+				if (target.MatchLdLoc(out var v)
+					&& v.Kind == VariableKind.DeconstructionInitTemporary)
+				{
+					Debug.Assert(inits[initPos].Variable == v);
+					target.ReplaceWith(inits[initPos].Value);
+					initPos++;
+				}
+			}
 		}
 
 		protected internal override TranslatedExpression VisitInvalidBranch(InvalidBranch inst, TranslationContext context)

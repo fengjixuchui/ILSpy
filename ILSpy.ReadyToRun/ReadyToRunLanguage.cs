@@ -201,9 +201,9 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 				WriteCommentLine(output, $"UnwindInfo:");
 				WriteCommentLine(output, $"Version:            {amd64UnwindInfo.Version}");
 				WriteCommentLine(output, $"Flags:              0x{amd64UnwindInfo.Flags:X2}{parsedFlags}");
-				WriteCommentLine(output, $"FrameRegister:      {((amd64UnwindInfo.FrameRegister == 0) ? "none" : amd64UnwindInfo.FrameRegister.ToString())}");
+				WriteCommentLine(output, $"FrameRegister:      {((amd64UnwindInfo.FrameRegister == 0) ? "none" : amd64UnwindInfo.FrameRegister.ToString().ToLower())}");
 				for (int unwindCodeIndex = 0; unwindCodeIndex < amd64UnwindInfo.CountOfUnwindCodes; unwindCodeIndex++) {
-					unwindCodes.Add((ulong)(amd64UnwindInfo.UnwindCodeArray[unwindCodeIndex].CodeOffset), amd64UnwindInfo.UnwindCodeArray[unwindCodeIndex]);
+					unwindCodes.Add((ulong)(amd64UnwindInfo.UnwindCodes[unwindCodeIndex].CodeOffset), amd64UnwindInfo.UnwindCodes[unwindCodeIndex]);
 				}
 			}
 			return unwindCodes;
@@ -213,7 +213,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 		{
 			// TODO: Decorate the disassembly with GCInfo
 			WriteCommentLine(output, readyToRunMethod.SignatureString);
-			
+
 			Dictionary<ulong, UnwindCode> unwindInfo = null;
 			if (ReadyToRunOptions.GetIsShowUnwindInfo(null) && bitness == 64) {
 				unwindInfo = WriteUnwindInfo(runtimeFunction, output);
@@ -327,7 +327,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 							if (varInfo.StartOffset < instr.IP - baseInstrIP && varInfo.EndOffset > instr.IP - baseInstrIP &&
 								DebugInfo.GetPlatformSpecificRegister(debugInfo.Machine, varInfo.VariableLocation.Data1) == usedMemInfo.Base.ToString() &&
 								adjOffset == usedMemInfo.Displacement) {
-								output.Write($"; [{usedMemInfo.Base.ToString()}{(negativeOffset ? '-' : '+')}{Math.Abs(stackOffset)}] = {varInfo.Variable.Type} {varInfo.Variable.Index}");
+								output.Write($"; [{usedMemInfo.Base.ToString().ToLower()}{(negativeOffset ? '-' : '+')}{Math.Abs(stackOffset):X}h] = {varInfo.Variable.Type} {varInfo.Variable.Index}");
 							}
 						}
 					}
@@ -347,15 +347,16 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 						foreach ((DebugInfo debugInfo, NativeVarInfo varLoc) tuple in regSet) {
 							var debugInfo = tuple.debugInfo;
 							var varInfo = tuple.varLoc;
-							if (varInfo.StartOffset < instr.IP - baseInstrIP && varInfo.EndOffset > instr.IP - baseInstrIP &&
+							if (varInfo.StartOffset <= (instr.IP - baseInstrIP) && (instr.IP - baseInstrIP) < varInfo.EndOffset &&
 								DebugInfo.GetPlatformSpecificRegister(debugInfo.Machine, varInfo.VariableLocation.Data1) == usedMemInfo.Register.ToString()) {
-								output.Write($"; {usedMemInfo.Register.ToString()} = {varInfo.Variable.Type} {varInfo.Variable.Index}");
+								output.Write($"; {usedMemInfo.Register.ToString().ToLower()} = {varInfo.Variable.Type} {varInfo.Variable.Index}");
 							}
 						}
 					}
 				}
 			}
 		}
+
 		private static void DecorateCallSite(PEFile currentFile, ITextOutput output, ReadyToRunReader reader, bool showMetadataTokens, bool showMetadataTokensInBase10, Instruction instr)
 		{
 			int importCellAddress = (int)instr.IPRelativeMemoryAddress;
@@ -407,7 +408,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 				if (!readyToRunReaders.TryGetValue(module, out result)) {
 					result = new ReadyToRunReaderCacheEntry();
 					try {
-						result.readyToRunReader = new ReadyToRunReader(new ReadyToRunAssemblyResolver(assembly), module.Metadata, module.Reader, module.FileName);
+						result.readyToRunReader = new ReadyToRunReader(new ReadyToRunAssemblyResolver(assembly), new StandaloneAssemblyMetadata(module.Reader), module.Reader, module.FileName);
 						if (result.readyToRunReader.Machine != Machine.Amd64 && result.readyToRunReader.Machine != Machine.I386) {
 							result.failureReason = $"Architecture {result.readyToRunReader.Machine} is not currently supported.";
 							result.readyToRunReader = null;
@@ -434,13 +435,14 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 
 			public bool InlineSignatureBinary => false;
 
-			public MetadataReader FindAssembly(MetadataReader metadataReader, AssemblyReferenceHandle assemblyReferenceHandle, string parentFile)
+			public IAssemblyMetadata FindAssembly(MetadataReader metadataReader, AssemblyReferenceHandle assemblyReferenceHandle, string parentFile)
 			{
 				LoadedAssembly loadedAssembly = this.loadedAssembly.LookupReferencedAssembly(new Decompiler.Metadata.AssemblyReference(metadataReader, assemblyReferenceHandle));
-				return loadedAssembly?.GetPEFileOrNull()?.Metadata;
+				PEReader reader = loadedAssembly?.GetPEFileOrNull()?.Reader;
+				return reader == null ? null : new StandaloneAssemblyMetadata(reader);
 			}
 
-			public MetadataReader FindAssembly(string simpleName, string parentFile)
+			public IAssemblyMetadata FindAssembly(string simpleName, string parentFile)
 			{
 				// This is called only for the composite R2R scenario, 
 				// So it will never be called before the feature is released.

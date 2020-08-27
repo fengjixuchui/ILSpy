@@ -225,6 +225,9 @@ Are you sure you want to continue?</value>
   <data name="DebugThisStep" xml:space="preserve">
     <value>Debug this step</value>
   </data>
+  <data name="DecompilationCompleteInF1Seconds" xml:space="preserve">
+    <value>Decompilation complete in {0:F1} seconds.</value>
+  </data>
   <data name="Decompile" xml:space="preserve">
     <value>Decompile</value>
   </data>
@@ -245,6 +248,9 @@ Are you sure you want to continue?</value>
   </data>
   <data name="DecompilerSettings.AlwaysCastTargetsOfExplicitInterfaceImplementationCalls" xml:space="preserve">
     <value>Always cast targets of explicit interface implementation calls</value>
+  </data>
+  <data name="DecompilerSettings.AlwaysQualifyMemberReferences" xml:space="preserve">
+    <value>Always qualify member references</value>
   </data>
   <data name="DecompilerSettings.AlwaysShowEnumMemberValues" xml:space="preserve">
     <value>Always show enum member values</value>
@@ -296,6 +302,9 @@ Are you sure you want to continue?</value>
   </data>
   <data name="DecompilerSettings.DecompileUseOfTheDynamicType" xml:space="preserve">
     <value>Decompile use of the 'dynamic' type</value>
+  </data>
+  <data name="DecompilerSettings.Deconstruction" xml:space="preserve">
+    <value>Detect deconstruction assignments</value>
   </data>
   <data name="DecompilerSettings.DetectAsyncUsingAndForeachStatements" xml:space="preserve">
     <value>Detect awaited using and foreach statements</value>
@@ -389,6 +398,9 @@ Are you sure you want to continue?</value>
   </data>
   <data name="DecompilerSettings.UseDiscards" xml:space="preserve">
     <value>Use discards</value>
+  </data>
+  <data name="DecompilerSettings.UseEnhancedUsing" xml:space="preserve">
+    <value>Use enhanced using variable declarations</value>
   </data>
   <data name="DecompilerSettings.UseExpressionBodiedMemberSyntaxForGetOnlyProperties" xml:space="preserve">
     <value>Use expression-bodied member syntax for get-only properties</value>
@@ -618,6 +630,15 @@ Please disable all filters that might hide the item (i.e. activate "View &gt; Sh
   </data>
   <data name="PortablePDBPdbAllFiles" xml:space="preserve">
     <value>Portable PDB|*.pdb|All files|*.*</value>
+  </data>
+  <data name="ProjectExportFormatChangeSettingHint" xml:space="preserve">
+    <value>You can change this by toggling the setting at Options &gt; Decompiler &gt; Other &gt; Use new SDK style format for generated project files (*.csproj).</value>
+  </data>
+  <data name="ProjectExportFormatNonSDKHint" xml:space="preserve">
+    <value>A Non-SDK project was generated. Learn more at https://docs.microsoft.com/en-us/nuget/resources/check-project-format.</value>
+  </data>
+  <data name="ProjectExportFormatSDKHint" xml:space="preserve">
+    <value>A SDK-style project was generated. Learn more at https://docs.microsoft.com/en-us/nuget/resources/check-project-format.</value>
   </data>
   <data name="PropertyManuallyMissingReferencesListLoadedAssemblies" xml:space="preserve">
     <value>for ex. property getter/setter access. To get optimal decompilation results, please manually add the missing references to the list of loaded assemblies.</value>

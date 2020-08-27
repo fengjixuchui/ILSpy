@@ -791,6 +791,17 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 			EndNode(directionExpression);
 		}
 
+		public virtual void VisitDeclarationExpression(DeclarationExpression declarationExpression)
+		{
+			StartNode(declarationExpression);
+
+			declarationExpression.Type.AcceptVisitor(this);
+			Space();
+			declarationExpression.Designation.AcceptVisitor(this);
+
+			EndNode(declarationExpression);
+		}
+
 		public virtual void VisitOutVarDeclarationExpression(OutVarDeclarationExpression outVarDeclarationExpression)
 		{
 			StartNode(outVarDeclarationExpression);
@@ -1545,13 +1556,16 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 		public virtual void VisitForeachStatement(ForeachStatement foreachStatement)
 		{
 			StartNode(foreachStatement);
+			if (foreachStatement.IsAsync)
+				WriteKeyword(ForeachStatement.AwaitRole);
 			WriteKeyword(ForeachStatement.ForeachKeywordRole);
 			Space(policy.SpaceBeforeForeachParentheses);
 			LPar();
 			Space(policy.SpacesWithinForeachParentheses);
 			foreachStatement.VariableType.AcceptVisitor(this);
 			Space();
-			WriteIdentifier(foreachStatement.VariableNameToken);
+			foreachStatement.VariableDesignation.AcceptVisitor(this);
+			Space();
 			WriteKeyword(ForeachStatement.InKeywordRole);
 			Space();
 			foreachStatement.InExpression.AcceptVisitor(this);
@@ -1875,16 +1889,36 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 				WriteKeyword(UsingStatement.AwaitRole);
 			}
 			WriteKeyword(UsingStatement.UsingKeywordRole);
-			Space(policy.SpaceBeforeUsingParentheses);
-			LPar();
-			Space(policy.SpacesWithinUsingParentheses);
+			if (usingStatement.IsEnhanced) {
+				Space();
+			} else {
+				Space(policy.SpaceBeforeUsingParentheses);
+				LPar();
+				Space(policy.SpacesWithinUsingParentheses);
+			}
 
 			usingStatement.ResourceAcquisition.AcceptVisitor(this);
 
-			Space(policy.SpacesWithinUsingParentheses);
-			RPar();
+			if (usingStatement.IsEnhanced) {
+				Semicolon();
+			} else {
+				Space(policy.SpacesWithinUsingParentheses);
+				RPar();
+			}
 
-			WriteEmbeddedStatement(usingStatement.EmbeddedStatement);
+			if (usingStatement.IsEnhanced) {
+				if (usingStatement.EmbeddedStatement is BlockStatement blockStatement) {
+					StartNode(blockStatement);
+					foreach (var node in blockStatement.Statements) {
+						node.AcceptVisitor(this);
+					}
+					EndNode(blockStatement);
+				} else {
+					usingStatement.EmbeddedStatement.AcceptVisitor(this);
+				}
+			} else {
+				WriteEmbeddedStatement(usingStatement.EmbeddedStatement);
+			}
 
 			EndNode(usingStatement);
 		}
@@ -2408,6 +2442,22 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 			StartNode(primitiveType);
 			writer.WritePrimitiveType(primitiveType.Keyword);
 			EndNode(primitiveType);
+		}
+
+		public virtual void VisitSingleVariableDesignation(SingleVariableDesignation singleVariableDesignation)
+		{
+			StartNode(singleVariableDesignation);
+			writer.WriteIdentifier(singleVariableDesignation.IdentifierToken);
+			EndNode(singleVariableDesignation);
+		}
+
+		public virtual void VisitParenthesizedVariableDesignation(ParenthesizedVariableDesignation parenthesizedVariableDesignation)
+		{
+			StartNode(parenthesizedVariableDesignation);
+			LPar();
+			WriteCommaSeparatedList(parenthesizedVariableDesignation.VariableDesignations);
+			RPar();
+			EndNode(parenthesizedVariableDesignation);
 		}
 
 		public virtual void VisitComment(Comment comment)

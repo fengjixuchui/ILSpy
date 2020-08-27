@@ -337,14 +337,14 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 				body.Statements.Add(statement.Detach());
 			var foreachStmt = new ForeachStatement {
 				VariableType = context.Settings.AnonymousTypes && itemVariable.Type.ContainsAnonymousType() ? new SimpleType("var") : context.TypeSystemAstBuilder.ConvertType(itemVariable.Type),
-				VariableName = itemVariable.Name,
+				VariableDesignation = new SingleVariableDesignation { Identifier = itemVariable.Name },
 				InExpression = m.Get<IdentifierExpression>("arrayVariable").Single().Detach(),
 				EmbeddedStatement = body
 			};
 			foreachStmt.CopyAnnotationsFrom(forStatement);
 			itemVariable.Kind = IL.VariableKind.ForeachLocal;
 			// Add the variable annotation for highlighting (TokenTextWriter expects it directly on the ForeachStatement).
-			foreachStmt.AddAnnotation(new ILVariableResolveResult(itemVariable, itemVariable.Type));
+			foreachStmt.VariableDesignation.AddAnnotation(new ILVariableResolveResult(itemVariable, itemVariable.Type));
 			// TODO : add ForeachAnnotation
 			forStatement.ReplaceWith(foreachStmt);
 			return foreachStmt;
@@ -495,7 +495,7 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 				body.Statements.Add(statement.Detach());
 			var foreachStmt = new ForeachStatement {
 				VariableType = context.Settings.AnonymousTypes && itemVariable.Type.ContainsAnonymousType() ? new SimpleType("var") : context.TypeSystemAstBuilder.ConvertType(itemVariable.Type),
-				VariableName = itemVariable.Name,
+				VariableDesignation = new SingleVariableDesignation { Identifier = itemVariable.Name },
 				InExpression = m.Get<IdentifierExpression>("collection").Single().Detach(),
 				EmbeddedStatement = body
 			};
@@ -504,7 +504,7 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 			//foreachStmt.CopyAnnotationsFrom(forStatement);
 			itemVariable.Kind = IL.VariableKind.ForeachLocal;
 			// Add the variable annotation for highlighting (TokenTextWriter expects it directly on the ForeachStatement).
-			foreachStmt.AddAnnotation(new ILVariableResolveResult(itemVariable, itemVariable.Type));
+			foreachStmt.VariableDesignation.AddAnnotation(new ILVariableResolveResult(itemVariable, itemVariable.Type));
 			// TODO : add ForeachAnnotation
 			expressionStatement.ReplaceWith(foreachStmt);
 			return foreachStmt;
@@ -586,7 +586,7 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 					field = m2.Get<AstNode>("fieldReference").Single().GetSymbol() as IField;
 				}
 			}
-			if (field == null)
+			if (field == null || !NameCouldBeBackingFieldOfAutomaticProperty(field.Name, out _))
 				return null;
 			if (propertyDeclaration.Setter.HasModifier(Modifiers.Readonly))
 				return null;
@@ -653,19 +653,39 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 		internal static bool IsBackingFieldOfAutomaticProperty(IField field, out IProperty property)
 		{
 			property = null;
-			if (!(field.Name.StartsWith("<") && field.Name.EndsWith(">k__BackingField")))
+			if (!NameCouldBeBackingFieldOfAutomaticProperty(field.Name, out string propertyName))
 				return false;
 			if (!field.IsCompilerGenerated())
 				return false;
-			var propertyName = field.Name.Substring(1, field.Name.Length - 1 - ">k__BackingField".Length);
 			property = field.DeclaringTypeDefinition
-				.GetProperties(p => p.Name == propertyName, GetMemberOptions.IgnoreInheritedMembers).FirstOrDefault();
+				.GetProperties(p => p.Name == propertyName, GetMemberOptions.IgnoreInheritedMembers)
+				.FirstOrDefault();
 			return property != null;
+		}
+
+		/// <summary>
+		/// This matches the following patterns
+		/// <list type="bullet">
+		///		<item>&lt;Property&gt;k__BackingField (used by C#)</item>
+		///		<item>_Property (used by VB)</item>
+		/// </list>
+		/// </summary>
+		static readonly System.Text.RegularExpressions.Regex automaticPropertyBackingFieldNameRegex
+			= new System.Text.RegularExpressions.Regex(@"^(<(?<name>.+)>k__BackingField|_(?<name>.+))$");
+
+		static bool NameCouldBeBackingFieldOfAutomaticProperty(string name, out string propertyName)
+		{
+			propertyName = null;
+			var m = automaticPropertyBackingFieldNameRegex.Match(name);
+			if (!m.Success)
+				return false;
+			propertyName = m.Groups["name"].Value;
+			return true;
 		}
 
 		Identifier ReplaceBackingFieldUsage(Identifier identifier)
 		{
-			if (identifier.Name.StartsWith("<") && identifier.Name.EndsWith(">k__BackingField")) {
+			if (NameCouldBeBackingFieldOfAutomaticProperty(identifier.Name, out _)) {
 				var parent = identifier.Parent;
 				var mrr = parent.Annotation<MemberResolveResult>();
 				var field = mrr?.Member as IField;
@@ -1101,6 +1121,24 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 				}
 			}
 			return base.VisitFixedStatement(fixedStatement);
+		}
+		#endregion
+
+		#region C# 8.0 Using variables
+		public override AstNode VisitUsingStatement(UsingStatement usingStatement)
+		{
+			usingStatement = (UsingStatement)base.VisitUsingStatement(usingStatement);
+			if (!context.Settings.UseEnhancedUsing)
+				return usingStatement;
+
+			if (usingStatement.GetNextStatement() != null || !(usingStatement.Parent is BlockStatement))
+				return usingStatement;
+
+			if (!(usingStatement.ResourceAcquisition is VariableDeclarationStatement))
+				return usingStatement;
+
+			usingStatement.IsEnhanced = true;
+			return usingStatement;
 		}
 		#endregion
 	}

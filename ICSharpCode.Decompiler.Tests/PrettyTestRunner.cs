@@ -179,6 +179,15 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public void Using([ValueSource(nameof(defaultOptions))] CompilerOptions cscOptions)
 		{
+			RunForLibrary(
+				cscOptions: cscOptions,
+				decompilerSettings: new DecompilerSettings { UseEnhancedUsing = false }
+			);
+		}
+
+		[Test]
+		public void UsingVariables([ValueSource(nameof(dotnetCoreOnlyOptions))] CompilerOptions cscOptions)
+		{
 			RunForLibrary(cscOptions: cscOptions);
 		}
 
@@ -315,6 +324,12 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
+		public void AsyncForeach([ValueSource(nameof(dotnetCoreOnlyOptions))] CompilerOptions cscOptions)
+		{
+			RunForLibrary(cscOptions: cscOptions);
+		}
+
+		[Test]
 		public void AsyncMain([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
 		{
 			Run(cscOptions: cscOptions);
@@ -329,7 +344,10 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public void AsyncUsing([ValueSource(nameof(dotnetCoreOnlyOptions))] CompilerOptions cscOptions)
 		{
-			RunForLibrary(cscOptions: cscOptions);
+			RunForLibrary(
+				cscOptions: cscOptions,
+				decompilerSettings: new DecompilerSettings { UseEnhancedUsing = false }
+			);
 		}
 
 		[Test]
@@ -407,7 +425,7 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public void OptionalArguments([ValueSource(nameof(defaultOptions))] CompilerOptions cscOptions)
 		{
-			RunForLibrary(cscOptions: cscOptions);
+			RunForLibrary(cscOptions: cscOptions | CompilerOptions.Preview);
 		}
 
 		[Test]
@@ -496,6 +514,12 @@ namespace ICSharpCode.Decompiler.Tests
 
 		[Test]
 		public void Discards([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		{
+			RunForLibrary(cscOptions: cscOptions);
+		}
+
+		[Test]
+		public void DeconstructionTests([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
 		}

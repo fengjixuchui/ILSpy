@@ -595,6 +595,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Decompilation complete in {0:F1} seconds..
+        /// </summary>
+        public static string DecompilationCompleteInF1Seconds {
+            get {
+                return ResourceManager.GetString("DecompilationCompleteInF1Seconds", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Decompile.
         /// </summary>
         public static string Decompile {
@@ -645,6 +654,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string DecompilerSettings_AlwaysCastTargetsOfExplicitInterfaceImplementationCalls {
             get {
                 return ResourceManager.GetString("DecompilerSettings.AlwaysCastTargetsOfExplicitInterfaceImplementationCalls", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Always qualify member references.
+        /// </summary>
+        public static string DecompilerSettings_AlwaysQualifyMemberReferences {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.AlwaysQualifyMemberReferences", resourceCulture);
             }
         }
         
@@ -798,6 +816,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string DecompilerSettings_DecompileUseOfTheDynamicType {
             get {
                 return ResourceManager.GetString("DecompilerSettings.DecompileUseOfTheDynamicType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Detect deconstruction assignments.
+        /// </summary>
+        public static string DecompilerSettings_Deconstruction {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.Deconstruction", resourceCulture);
             }
         }
         
@@ -1079,6 +1106,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string DecompilerSettings_UseDiscards {
             get {
                 return ResourceManager.GetString("DecompilerSettings.UseDiscards", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use enhanced using variable declarations.
+        /// </summary>
+        public static string DecompilerSettings_UseEnhancedUsing {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.UseEnhancedUsing", resourceCulture);
             }
         }
         
@@ -1773,6 +1809,33 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string PortablePDBPdbAllFiles {
             get {
                 return ResourceManager.GetString("PortablePDBPdbAllFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to You can change this by toggling the setting at Options &gt; Decompiler &gt; Other &gt; Use new SDK style format for generated project files (*.csproj)..
+        /// </summary>
+        public static string ProjectExportFormatChangeSettingHint {
+            get {
+                return ResourceManager.GetString("ProjectExportFormatChangeSettingHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A Non-SDK project was generated. Learn more at https://docs.microsoft.com/en-us/nuget/resources/check-project-format..
+        /// </summary>
+        public static string ProjectExportFormatNonSDKHint {
+            get {
+                return ResourceManager.GetString("ProjectExportFormatNonSDKHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A SDK-style project was generated. Learn more at https://docs.microsoft.com/en-us/nuget/resources/check-project-format..
+        /// </summary>
+        public static string ProjectExportFormatSDKHint {
+            get {
+                return ResourceManager.GetString("ProjectExportFormatSDKHint", resourceCulture);
             }
         }
         

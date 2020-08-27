@@ -93,6 +93,7 @@ namespace ICSharpCode.Decompiler
 				tupleConversions = false;
 				discards = false;
 				localFunctions = false;
+				deconstruction = false;
 			}
 			if (languageVersion < CSharp.LanguageVersion.CSharp7_2) {
 				introduceReadonlyAndInModifiers = false;
@@ -111,6 +112,7 @@ namespace ICSharpCode.Decompiler
 				readOnlyMethods = false;
 				asyncUsingAndForEachStatement = false;
 				asyncEnumerator = false;
+				useEnhancedUsing = false;
 				staticLocalFunctions = false;
 				ranges = false;
 				switchExpressions = false;
@@ -473,6 +475,23 @@ namespace ICSharpCode.Decompiler
 			}
 		}
 
+		bool useEnhancedUsing = true;
+
+		/// <summary>
+		/// Use enhanced using statements.
+		/// </summary>
+		[Category("C# 8.0 / VS 2019")]
+		[Description("DecompilerSettings.UseEnhancedUsing")]
+		public bool UseEnhancedUsing {
+			get { return useEnhancedUsing; }
+			set {
+				if (useEnhancedUsing != value) {
+					useEnhancedUsing = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
 		bool alwaysUseBraces = true;
 
 		/// <summary>
@@ -614,6 +633,26 @@ namespace ICSharpCode.Decompiler
 			set {
 				if (alwaysCastTargetsOfExplicitInterfaceImplementationCalls != value) {
 					alwaysCastTargetsOfExplicitInterfaceImplementationCalls = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool alwaysQualifyMemberReferences = false;
+
+		/// <summary>
+		/// Gets/Sets whether to always qualify member references.
+		/// true: <c>this.DoSomething();</c>
+		/// false: <c>DoSomething();</c>
+		/// default: false
+		/// </summary>
+		[Category("Other")]
+		[Description("DecompilerSettings.AlwaysQualifyMemberReferences")]
+		public bool AlwaysQualifyMemberReferences {
+			get { return alwaysQualifyMemberReferences; }
+			set {
+				if (alwaysQualifyMemberReferences != value) {
+					alwaysQualifyMemberReferences = value;
 					OnPropertyChanged();
 				}
 			}
@@ -1142,6 +1181,23 @@ namespace ICSharpCode.Decompiler
 			}
 		}
 
+		bool deconstruction = true;
+
+		/// <summary>
+		/// Gets/Sets whether C# 7.0 deconstruction should be detected.
+		/// </summary>
+		[Category("C# 7.0 / VS 2017")]
+		[Description("DecompilerSettings.Deconstruction")]
+		public bool Deconstruction {
+			get { return deconstruction; }
+			set {
+				if (deconstruction != value) {
+					deconstruction = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
 		bool staticLocalFunctions = true;
 
 		/// <summary>
@@ -1162,7 +1218,7 @@ namespace ICSharpCode.Decompiler
 		bool ranges = true;
 
 		/// <summary>
-		/// Gets/Sets whether C# 8.0 static local functions should be transformed.
+		/// Gets/Sets whether C# 8.0 index and range syntax should be used.
 		/// </summary>
 		[Category("C# 8.0 / VS 2019")]
 		[Description("DecompilerSettings.Ranges")]
