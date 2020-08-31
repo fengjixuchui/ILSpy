@@ -6,9 +6,14 @@ configuration:
 
 image: Visual Studio 2019
 
+init:
+# force git to use crlf: otherwise dotnet-format --check fails
+- git config --global core.autocrlf true
+
 install:
 - git submodule update --init --recursive
 - pwsh .\BuildTools\appveyor-install.ps1
+- dotnet tool install dotnet-format --tool-path BuildTools
 
 nuget:
   account_feed: false
@@ -29,6 +34,7 @@ test_script:
 
 after_test:
 - python BuildTools\tidy.py
+- .\BuildTools\dotnet-format --check --verbosity diagnostic ILSpy.sln
 
 for:
 - branches:
