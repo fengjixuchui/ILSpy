@@ -296,14 +296,17 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 
 			if (flags.HasFlag(CompilerOptions.UseRoslyn))
 			{
+				var languageVersion = flags.HasFlag(CompilerOptions.Preview)
+					? Microsoft.CodeAnalysis.CSharp.LanguageVersion.Preview
+					: Microsoft.CodeAnalysis.CSharp.LanguageVersion.CSharp8;
 				var parseOptions = new CSharpParseOptions(
 					preprocessorSymbols: preprocessorSymbols.ToArray(),
-					languageVersion: flags.HasFlag(CompilerOptions.Preview) ? Microsoft.CodeAnalysis.CSharp.LanguageVersion.Preview : Microsoft.CodeAnalysis.CSharp.LanguageVersion.CSharp8
+					languageVersion: languageVersion
 				);
 				var syntaxTrees = sourceFileNames.Select(f => SyntaxFactory.ParseSyntaxTree(File.ReadAllText(f), parseOptions, path: f, encoding: Encoding.UTF8));
 				if (flags.HasFlag(CompilerOptions.ReferenceCore))
 				{
-					syntaxTrees = syntaxTrees.Concat(new[] { SyntaxFactory.ParseSyntaxTree(targetFrameworkAttributeSnippet) });
+					syntaxTrees = syntaxTrees.Concat(new[] { SyntaxFactory.ParseSyntaxTree(targetFrameworkAttributeSnippet, parseOptions) });
 				}
 				IEnumerable<MetadataReference> references;
 				if (flags.HasFlag(CompilerOptions.ReferenceCore))
@@ -464,7 +467,13 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 			}
 			else
 			{
-				return new DecompilerSettings(CSharp.LanguageVersion.CSharp5);
+				var settings = new DecompilerSettings(CSharp.LanguageVersion.CSharp5);
+				if (cscOptions.HasFlag(CompilerOptions.UseMcs))
+				{
+					// we don't recompile with mcs but with roslyn, so we can use ref locals
+					settings.UseRefLocalsForAccurateOrderOfEvaluation = true;
+				}
+				return settings;
 			}
 		}
 

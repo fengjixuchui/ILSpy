@@ -267,9 +267,6 @@ Are you sure you want to continue?</value>
   <data name="DecompilerSettings.AsyncEnumerator" xml:space="preserve">
     <value>Decompile async IAsyncEnumerator methods</value>
   </data>
-  <data name="DecompilerSettings.DecompileAndOperators" xml:space="preserve">
-    <value>Decompile ?. and ?[] operators</value>
-  </data>
   <data name="DecompilerSettings.DecompileAnonymousMethodsLambdas" xml:space="preserve">
     <value>Decompile anonymous methods/lambdas</value>
   </data>
@@ -299,6 +296,9 @@ Are you sure you want to continue?</value>
   </data>
   <data name="DecompilerSettings.DecompileExpressionTrees" xml:space="preserve">
     <value>Decompile expression trees</value>
+  </data>
+  <data name="DecompilerSettings.DecompileForEachWithGetEnumeratorExtension" xml:space="preserve">
+    <value>Decompile foreach statements with GetEnumerator extension methods</value>
   </data>
   <data name="DecompilerSettings.DecompileUseOfTheDynamicType" xml:space="preserve">
     <value>Decompile use of the 'dynamic' type</value>
@@ -336,6 +336,9 @@ Are you sure you want to continue?</value>
   <data name="DecompilerSettings.ForStatement" xml:space="preserve">
     <value>Transform to for, if possible</value>
   </data>
+  <data name="DecompilerSettings.FunctionPointers" xml:space="preserve">
+    <value>Function pointers</value>
+  </data>
   <data name="DecompilerSettings.IncludeXMLDocumentationCommentsInTheDecompiledCode" xml:space="preserve">
     <value>Include XML documentation comments in the decompiled code</value>
   </data>
@@ -362,6 +365,9 @@ Are you sure you want to continue?</value>
   </data>
   <data name="DecompilerSettings.NativeIntegers" xml:space="preserve">
     <value>Use nint/nuint types</value>
+  </data>
+  <data name="DecompilerSettings.NullPropagation" xml:space="preserve">
+    <value>Decompile ?. and ?[] operators</value>
   </data>
   <data name="DecompilerSettings.NullableReferenceTypes" xml:space="preserve">
     <value>Nullable reference types</value>
@@ -392,6 +398,9 @@ Are you sure you want to continue?</value>
   </data>
   <data name="DecompilerSettings.ShowInfoFromDebugSymbolsIfAvailable" xml:space="preserve">
     <value>Show info from debug symbols, if available</value>
+  </data>
+  <data name="DecompilerSettings.SparseIntegerSwitch" xml:space="preserve">
+    <value>Detect switch on integer even if IL code does not use a jump table</value>
   </data>
   <data name="DecompilerSettings.SwitchExpressions" xml:space="preserve">
     <value>Switch expressions</value>
@@ -434,6 +443,9 @@ Are you sure you want to continue?</value>
   </data>
   <data name="DecompilerSettings.UsePatternBasedFixedStatement" xml:space="preserve">
     <value>Use pattern-based fixed statement</value>
+  </data>
+  <data name="DecompilerSettings.UseRefLocalsForAccurateOrderOfEvaluation" xml:space="preserve">
+    <value>Use ref locals to accurately represent order of evaluation</value>
   </data>
   <data name="DecompilerSettings.UseSdkStyleProjectFormat" xml:space="preserve">
     <value>Use new SDK style format for generated project files (*.csproj)</value>

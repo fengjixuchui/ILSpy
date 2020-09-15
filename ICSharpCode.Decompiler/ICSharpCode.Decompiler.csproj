@@ -72,7 +72,7 @@
     <Compile Include="CSharp\ProjectDecompiler\TargetServices.cs" />
     <Compile Include="CSharp\Syntax\Expressions\DeclarationExpression.cs" />
     <Compile Include="CSharp\Syntax\Expressions\SwitchExpression.cs" />
-    <Compile Include="CSharp\Syntax\FunctionPointerType.cs" />
+    <Compile Include="CSharp\Syntax\FunctionPointerAstType.cs" />
     <Compile Include="CSharp\Syntax\VariableDesignation.cs" />
     <Compile Include="IL\Transforms\DeconstructionTransform.cs" />
     <Compile Include="IL\Transforms\FixLoneIsInst.cs" />
@@ -86,6 +86,7 @@
     <Compile Include="Documentation\XmlDocumentationElement.cs" />
     <Compile Include="IL\ControlFlow\AwaitInFinallyTransform.cs" />
     <Compile Include="IL\Transforms\IntroduceNativeIntTypeOnLocals.cs" />
+    <Compile Include="Semantics\OutVarResolveResult.cs" />
     <Compile Include="Solution\ProjectId.cs" />
     <Compile Include="Solution\ProjectItem.cs" />
     <Compile Include="Solution\SolutionCreator.cs" />
@@ -249,6 +250,7 @@
     <Compile Include="CSharp\Resolver\OverloadResolutionErrors.cs" />
     <Compile Include="IL\Transforms\FixRemainingIncrements.cs" />
     <Compile Include="IL\Transforms\ILExtraction.cs" />
+    <Compile Include="TypeSystem\FunctionPointerType.cs" />
     <Compile Include="TypeSystem\Implementation\LocalFunctionMethod.cs" />
     <Compile Include="CSharp\Resolver\TypeInference.cs" />
     <Compile Include="CSharp\Transforms\CombineQueryExpressions.cs" />

@@ -1,4 +1,4 @@
-﻿// Copyright (c) AlphaSierraPapa for the SharpDevelop Team
+﻿// Copyright (c) 2020 Daniel Grunwald
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
 // software and associated documentation files (the "Software"), to deal in the Software
@@ -16,32 +16,18 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
-using System.Collections.Generic;
+using ICSharpCode.Decompiler.TypeSystem;
 
-namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
+namespace ICSharpCode.Decompiler.Semantics
 {
-	public class PatternMatching
+	/// <summary>
+	/// Represents the implicitly-typed "out var".
+	/// Special-cased in overload resolution to be compatible with any out-parameter.
+	/// </summary>
+	class OutVarResolveResult : ResolveResult
 	{
-		public static void OutVarInShortCircuit(Dictionary<int, string> d)
-		{
-			if (d.Count > 2 && d.TryGetValue(42, out var value))
-			{
-				Console.WriteLine(value);
-			}
-		}
+		public static readonly OutVarResolveResult Instance = new OutVarResolveResult();
 
-		public static Action CapturedOutVarInShortCircuit(Dictionary<int, string> d)
-		{
-			// Note: needs reasoning about "definitely assigned if true"
-			// to ensure that the value is initialized when the delegate is declared.
-			if (d.Count > 2 && d.TryGetValue(42, out var value))
-			{
-				return delegate {
-					Console.WriteLine(value);
-				};
-			}
-			return null;
-		}
+		public OutVarResolveResult() : base(SpecialType.NoType) { }
 	}
 }

@@ -82,7 +82,7 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 		private static void RefCallSiteTests()
 		{
 #if CS70
-			CallWithOut(out dynamic d);
+			CallWithOut(out var d);
 			CallWithIn(in d);
 #else
 			dynamic d;
@@ -487,6 +487,26 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 		{
 			return (int)(dynamic)o;
 		}
+
+#if CS72
+		public void RefParams(ref object a, ref dynamic b, ref dynamic c)
+		{
+		}
+		public void RefParams2(in object a, ref dynamic b, out dynamic c)
+		{
+			c = null;
+		}
+
+		public ref dynamic RefReturn(ref object o)
+		{
+			return ref o;
+		}
+
+		public ref readonly dynamic RefReadonlyReturn(in object o)
+		{
+			return ref o;
+		}
+#endif
 	}
 
 	internal static class Extension
