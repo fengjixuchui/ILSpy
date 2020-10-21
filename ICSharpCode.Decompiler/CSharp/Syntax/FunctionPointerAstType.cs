@@ -34,18 +34,13 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 	public class FunctionPointerAstType : AstType
 	{
 		public static readonly TokenRole PointerRole = new TokenRole("*");
-		public static readonly Role<Identifier> CallingConventionRole = new Role<Identifier>("Target", Identifier.Null);
+		public static readonly Role<AstType> CallingConventionRole = new Role<AstType>("CallConv", AstType.Null);
 
-		public string CallingConvention {
-			get {
-				return GetChildByRole(CallingConventionRole).Name;
-			}
-			set {
-				SetChildByRole(CallingConventionRole, Identifier.Create(value));
-			}
+		public bool HasUnmanagedCallingConvention { get; set; }
+
+		public AstNodeCollection<AstType> CallingConventions {
+			get { return GetChildrenByRole(CallingConventionRole); }
 		}
-
-		public Identifier CallingConventionIdentifier => GetChildByRole(CallingConventionRole);
 
 		public AstNodeCollection<ParameterDeclaration> Parameters {
 			get { return GetChildrenByRole(Roles.Parameter); }
@@ -73,7 +68,8 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 
 		protected internal override bool DoMatch(AstNode other, PatternMatching.Match match)
 		{
-			return other is FunctionPointerAstType o && MatchString(this.CallingConvention, o.CallingConvention)
+			return other is FunctionPointerAstType o
+				&& this.CallingConventions.DoMatch(o.CallingConventions, match)
 				&& this.Parameters.DoMatch(o.Parameters, match)
 				&& this.ReturnType.DoMatch(o.ReturnType, match);
 		}

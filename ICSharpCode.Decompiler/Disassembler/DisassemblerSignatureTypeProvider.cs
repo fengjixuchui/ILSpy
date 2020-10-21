@@ -78,6 +78,7 @@ namespace ICSharpCode.Decompiler.Disassembler
 		{
 			return syntax => {
 				output.Write("method ");
+				signature.Header.WriteTo(output);
 				signature.ReturnType(syntax);
 				output.Write(" *(");
 				for (int i = 0; i < signature.ParameterTypes.Length; i++)

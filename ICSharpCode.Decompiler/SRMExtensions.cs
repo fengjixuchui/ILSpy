@@ -575,5 +575,20 @@ namespace ICSharpCode.Decompiler
 				return default;
 			}
 		}
+
+		public static string ToILSyntax(this SignatureCallingConvention callConv)
+		{
+			return callConv switch
+			{
+				SignatureCallingConvention.Default => "default",
+				SignatureCallingConvention.CDecl => "unmanaged cdecl",
+				SignatureCallingConvention.StdCall => "unmanaged stdcall",
+				SignatureCallingConvention.ThisCall => "unmanaged thiscall",
+				SignatureCallingConvention.FastCall => "unmanaged fastcall",
+				SignatureCallingConvention.VarArgs => "vararg",
+				SignatureCallingConvention.Unmanaged => "unmanaged",
+				_ => callConv.ToString().ToLowerInvariant()
+			};
+		}
 	}
 }

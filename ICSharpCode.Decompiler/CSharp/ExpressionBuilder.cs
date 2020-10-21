@@ -18,6 +18,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection.Metadata;
@@ -167,16 +168,19 @@ namespace ICSharpCode.Decompiler.CSharp
 				}
 				else if (inst is ILiftableInstruction liftable && liftable.IsLifted)
 				{
-					Debug.Assert(NullableType.IsNullable(cexpr.Type));
-					IType underlying = NullableType.GetUnderlyingType(cexpr.Type);
-					if (liftable.UnderlyingResultType.IsIntegerType())
+					if (liftable.UnderlyingResultType != StackType.Unknown)
 					{
-						Debug.Assert(underlying.GetStackType().IsIntegerType(), "IL instructions of integer type must convert into C# expressions of integer type");
-						Debug.Assert(underlying.GetSign() != Sign.None, "Must have a sign specified for zero/sign-extension");
-					}
-					else
-					{
-						Debug.Assert(underlying.GetStackType() == liftable.UnderlyingResultType);
+						Debug.Assert(NullableType.IsNullable(cexpr.Type));
+						IType underlying = NullableType.GetUnderlyingType(cexpr.Type);
+						if (liftable.UnderlyingResultType.IsIntegerType())
+						{
+							Debug.Assert(underlying.GetStackType().IsIntegerType(), "IL instructions of integer type must convert into C# expressions of integer type");
+							Debug.Assert(underlying.GetSign() != Sign.None, "Must have a sign specified for zero/sign-extension");
+						}
+						else
+						{
+							Debug.Assert(underlying.GetStackType() == liftable.UnderlyingResultType);
+						}
 					}
 				}
 				else if (inst.ResultType == StackType.Ref)
@@ -3948,7 +3952,8 @@ namespace ICSharpCode.Decompiler.CSharp
 			// C# 9 function pointer
 			var ftp = new FunctionPointerType(
 				typeSystem.MainModule,
-				SignatureCallingConvention.Default, // TODO
+				// TODO: calling convention
+				SignatureCallingConvention.Default, ImmutableArray.Create<IType>(),
 				inst.Method.ReturnType, inst.Method.ReturnTypeIsRefReadOnly,
 				inst.Method.Parameters.SelectImmutableArray(p => p.Type),
 				inst.Method.Parameters.SelectImmutableArray(p => p.ReferenceKind)

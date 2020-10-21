@@ -157,6 +157,7 @@ namespace ICSharpCode.Decompiler.Metadata
 			return (identifier, version ?? ZeroVersion);
 		}
 
+#if !VSADDIN
 		public PEFile Resolve(IAssemblyReference name)
 		{
 			var file = FindAssemblyFile(name);
@@ -181,10 +182,16 @@ namespace ICSharpCode.Decompiler.Metadata
 			}
 			return new PEFile(moduleFileName, new FileStream(moduleFileName, FileMode.Open, FileAccess.Read), streamOptions, metadataOptions);
 		}
+#endif
 
 		public virtual bool IsGacAssembly(IAssemblyReference reference)
 		{
 			return GetAssemblyInGac(reference) != null;
+		}
+
+		public virtual bool IsSharedAssembly(IAssemblyReference reference, out string runtimePack)
+		{
+			return dotNetCorePathFinder.TryResolveDotNetCoreShared(reference, out runtimePack) != null;
 		}
 
 		public string FindAssemblyFile(IAssemblyReference name)

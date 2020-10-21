@@ -129,6 +129,12 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
+		public void EvalOrder()
+		{
+			Run();
+		}
+
+		[Test]
 		public void CS1xSwitch_Debug()
 		{
 			Run(settings: new DecompilerSettings { SwitchExpressions = false });
@@ -138,6 +144,12 @@ namespace ICSharpCode.Decompiler.Tests
 		public void CS1xSwitch_Release()
 		{
 			Run(settings: new DecompilerSettings { SwitchExpressions = false });
+		}
+
+		[Test]
+		public void UnknownTypes()
+		{
+			Run();
 		}
 
 		[Test]
@@ -203,7 +215,7 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public void Unsafe()
 		{
-			Run();
+			Run(assemblerOptions: AssemblerOptions.Library | AssemblerOptions.UseLegacyAssembler);
 		}
 
 		[Test]
@@ -232,12 +244,13 @@ namespace ICSharpCode.Decompiler.Tests
 			Run();
 		}
 
-		void Run([CallerMemberName] string testName = null, DecompilerSettings settings = null)
+		void Run([CallerMemberName] string testName = null, DecompilerSettings settings = null,
+			AssemblerOptions assemblerOptions = AssemblerOptions.Library)
 		{
 			var ilFile = Path.Combine(TestCasePath, testName + ".il");
 			var csFile = Path.Combine(TestCasePath, testName + ".cs");
 
-			var executable = Tester.AssembleIL(ilFile, AssemblerOptions.Library);
+			var executable = Tester.AssembleIL(ilFile, assemblerOptions);
 			var decompiled = Tester.DecompileCSharp(executable, settings);
 
 			CodeAssert.FilesAreEqual(csFile, decompiled);
