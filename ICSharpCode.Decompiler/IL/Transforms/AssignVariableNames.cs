@@ -22,7 +22,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 
-using Humanizer;
+using Humanizer.Inflections;
 
 using ICSharpCode.Decompiler.CSharp.OutputVisitor;
 using ICSharpCode.Decompiler.TypeSystem;
@@ -477,6 +477,14 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 						return CleanUpVariableName(m.Name.Substring(3));
 					}
 					break;
+				case DynamicInvokeMemberInstruction dynInvokeMember:
+					if (dynInvokeMember.Name.StartsWith("Get", StringComparison.OrdinalIgnoreCase)
+						&& dynInvokeMember.Name.Length >= 4 && char.IsUpper(dynInvokeMember.Name[3]))
+					{
+						// use name from Get-methods
+						return CleanUpVariableName(dynInvokeMember.Name.Substring(3));
+					}
+					break;
 			}
 			return null;
 		}
@@ -777,7 +785,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 
 		private static bool IsPlural(string baseName, ref string proposedName)
 		{
-			var newName = baseName.Singularize(inputIsKnownToBePlural: false);
+			var newName = Vocabularies.Default.Singularize(baseName, inputIsKnownToBePlural: false);
 			if (newName == baseName)
 				return false;
 			proposedName = newName;

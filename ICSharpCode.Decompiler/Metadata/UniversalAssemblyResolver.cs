@@ -42,8 +42,10 @@ namespace ICSharpCode.Decompiler.Metadata
 		Mono
 	}
 
-	// This is inspired by Mono.Cecil's BaseAssemblyResolver/DefaultAssemblyResolver.
-	public class UniversalAssemblyResolver : IAssemblyResolver
+	/// <summary>
+	/// Used to resolve assemblies referenced by an assembly.
+	/// </summary>
+	public class UniversalAssemblyResolver : AssemblyReferenceClassifier, IAssemblyResolver
 	{
 		static UniversalAssemblyResolver()
 		{
@@ -89,6 +91,26 @@ namespace ICSharpCode.Decompiler.Metadata
 		TargetFrameworkIdentifier targetFrameworkIdentifier;
 		Version targetFrameworkVersion;
 
+		/// <summary>
+		/// Creates a new instance of the <see cref="UniversalAssemblyResolver"/>.
+		/// </summary>
+		/// <param name="mainAssemblyFileName">
+		/// The full path to the "main assembly" (i.e., the assembly being decompiled). This is used to
+		/// resolve assemblies that are located next the main assembly. If no full path is used, the resolver
+		/// falls back to using <see cref="Environment.CurrentDirectory"/>.
+		/// </param>
+		/// <param name="throwOnError">
+		/// If <see langword="true"/> an <see cref="AssemblyResolutionException"/> is thrown, in case the
+		/// assembly reference cannot be resolved.
+		/// </param>
+		/// <param name="targetFramework">
+		/// The target framework name as used by <see cref="System.Runtime.Versioning.TargetFrameworkAttribute"/>.
+		/// That is, "{framework},Version={version}": currently it supports ".NETCoreApp", ".NETStandard" and
+		/// "Silverlight", if the string doesn't match any of these, the resolver falls back to ".NET Framework",
+		/// which is "classic" .NET &lt;= 4.8.
+		/// </param>
+		/// <param name="streamOptions">Options used for the <see cref="PEReader"/>.</param>
+		/// <param name="metadataOptions">Options used for the <see cref="MetadataReader"/>.</param>
 		public UniversalAssemblyResolver(string mainAssemblyFileName, bool throwOnError, string targetFramework,
 			PEStreamOptions streamOptions = PEStreamOptions.Default, MetadataReaderOptions metadataOptions = MetadataReaderOptions.Default)
 		{
@@ -184,12 +206,7 @@ namespace ICSharpCode.Decompiler.Metadata
 		}
 #endif
 
-		public virtual bool IsGacAssembly(IAssemblyReference reference)
-		{
-			return GetAssemblyInGac(reference) != null;
-		}
-
-		public virtual bool IsSharedAssembly(IAssemblyReference reference, out string runtimePack)
+		public override bool IsSharedAssembly(IAssemblyReference reference, out string runtimePack)
 		{
 			return dotNetCorePathFinder.TryResolveDotNetCoreShared(reference, out runtimePack) != null;
 		}

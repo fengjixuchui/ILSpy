@@ -330,7 +330,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			  // Everything else can be worked around by casting via long.
 				if (!(targetType.IsKnownType(KnownTypeCode.Int64) || targetType.Kind == TypeKind.NInt
 					|| (checkForOverflow && targetType.IsKnownType(KnownTypeCode.Int32))
-					|| targetType.Kind.IsAnyPointer()))
+					|| targetType.Kind.IsAnyPointer() || targetType.Kind == TypeKind.ByReference))
 				{
 					var convertVia = expressionBuilder.settings.NativeIntegers ? SpecialType.NInt : compilation.FindType(KnownTypeCode.Int64);
 					return this.ConvertTo(convertVia, expressionBuilder, checkForOverflow)
@@ -344,14 +344,14 @@ namespace ICSharpCode.Decompiler.CSharp
 			  // Everything else can be worked around by casting via ulong.
 				if (!(targetType.IsKnownType(KnownTypeCode.UInt64) || targetType.Kind == TypeKind.NUInt
 					|| (checkForOverflow && targetType.IsKnownType(KnownTypeCode.UInt32))
-					|| targetType.Kind.IsAnyPointer()))
+					|| targetType.Kind.IsAnyPointer() || targetType.Kind == TypeKind.ByReference))
 				{
 					var convertVia = expressionBuilder.settings.NativeIntegers ? SpecialType.NUInt : compilation.FindType(KnownTypeCode.UInt64);
 					return this.ConvertTo(convertVia, expressionBuilder, checkForOverflow)
 						.ConvertTo(targetType, expressionBuilder, checkForOverflow, allowImplicitConversion);
 				}
 			}
-			if (targetUType.IsKnownType(KnownTypeCode.IntPtr))
+			if (targetUType.IsKnownType(KnownTypeCode.IntPtr) && utype.GetStackType().IsIntegerType())
 			{ // Conversion to IntPtr
 				if (type.IsKnownType(KnownTypeCode.Int32) || type.Kind == TypeKind.NInt)
 				{
@@ -382,7 +382,7 @@ namespace ICSharpCode.Decompiler.CSharp
 						.ConvertTo(targetType, expressionBuilder, checkForOverflow);
 				}
 			}
-			else if (targetUType.IsKnownType(KnownTypeCode.UIntPtr))
+			else if (targetUType.IsKnownType(KnownTypeCode.UIntPtr) && utype.GetStackType().IsIntegerType())
 			{ // Conversion to UIntPtr
 				if (type.IsKnownType(KnownTypeCode.UInt32) || type.Kind.IsAnyPointer() || type.Kind == TypeKind.NUInt)
 				{

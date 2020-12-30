@@ -48,8 +48,28 @@ namespace ICSharpCode.Decompiler.Metadata
 		PEFile Resolve(IAssemblyReference reference);
 		PEFile ResolveModule(PEFile mainModule, string moduleName);
 #endif
-		bool IsGacAssembly(IAssemblyReference reference);
-		bool IsSharedAssembly(IAssemblyReference reference, out string runtimePack);
+	}
+
+	public class AssemblyReferenceClassifier
+	{
+		/// <summary>
+		/// For GAC assembly references, the WholeProjectDecompiler will omit the HintPath in the
+		/// generated .csproj file.
+		/// </summary>
+		public virtual bool IsGacAssembly(IAssemblyReference reference)
+		{
+			return UniversalAssemblyResolver.GetAssemblyInGac(reference) != null;
+		}
+
+		/// <summary>
+		/// For .NET Core framework references, the WholeProjectDecompiler will omit the
+		/// assembly reference if the runtimePack is already included as an SDK.
+		/// </summary>
+		public virtual bool IsSharedAssembly(IAssemblyReference reference, out string runtimePack)
+		{
+			runtimePack = null;
+			return false;
+		}
 	}
 
 	public interface IAssemblyReference
@@ -185,8 +205,32 @@ namespace ICSharpCode.Decompiler.Metadata
 		public bool IsWindowsRuntime => (entry.Flags & AssemblyFlags.WindowsRuntime) != 0;
 		public bool IsRetargetable => (entry.Flags & AssemblyFlags.Retargetable) != 0;
 
-		public string Name => Metadata.GetString(entry.Name);
-		public string FullName => entry.GetFullAssemblyName(Metadata);
+		public string Name {
+			get {
+				try
+				{
+					return Metadata.GetString(entry.Name);
+				}
+				catch (BadImageFormatException)
+				{
+					return $"AR:{Handle}";
+				}
+			}
+		}
+
+		public string FullName {
+			get {
+				try
+				{
+					return entry.GetFullAssemblyName(Metadata);
+				}
+				catch (BadImageFormatException)
+				{
+					return $"fullname(AR:{Handle})";
+				}
+			}
+		}
+
 		public Version Version => entry.Version;
 		public string Culture => Metadata.GetString(entry.Culture);
 		byte[] IAssemblyReference.PublicKeyToken => GetPublicKeyToken();

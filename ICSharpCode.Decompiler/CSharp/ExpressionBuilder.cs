@@ -786,6 +786,42 @@ namespace ICSharpCode.Decompiler.CSharp
 				}
 				return ErrorExpression("Nullable comparisons with three-valued-logic not supported in C#");
 			}
+			if (inst.InputType == StackType.Ref)
+			{
+				// Reference comparison using Unsafe intrinsics
+				Debug.Assert(!inst.IsLifted);
+				(string methodName, bool negate) = inst.Kind switch
+				{
+					ComparisonKind.Equality => ("AreSame", false),
+					ComparisonKind.Inequality => ("AreSame", true),
+					ComparisonKind.LessThan => ("IsAddressLessThan", false),
+					ComparisonKind.LessThanOrEqual => ("IsAddressGreaterThan", true),
+					ComparisonKind.GreaterThan => ("IsAddressGreaterThan", false),
+					ComparisonKind.GreaterThanOrEqual => ("IsAddressLessThan", true),
+					_ => throw new InvalidOperationException("Invalid ComparisonKind")
+				};
+				var left = Translate(inst.Left);
+				var right = Translate(inst.Right);
+				if (left.Type.Kind != TypeKind.ByReference || !NormalizeTypeVisitor.TypeErasure.EquivalentTypes(left.Type, right.Type))
+				{
+					IType commonRefType = new ByReferenceType(compilation.FindType(KnownTypeCode.Byte));
+					left = left.ConvertTo(commonRefType, this);
+					right = right.ConvertTo(commonRefType, this);
+				}
+				IType boolType = compilation.FindType(KnownTypeCode.Boolean);
+				TranslatedExpression expr = CallUnsafeIntrinsic(
+					name: methodName,
+					arguments: new Expression[] { left, right },
+					returnType: boolType,
+					inst: inst
+				);
+				if (negate)
+				{
+					expr = new UnaryOperatorExpression(UnaryOperatorType.Not, expr)
+						.WithoutILInstruction().WithRR(new ResolveResult(boolType));
+				}
+				return expr;
+			}
 			if (inst.Kind.IsEqualityOrInequality())
 			{
 				var result = TranslateCeq(inst, out bool negateOutput);
@@ -2448,7 +2484,19 @@ namespace ICSharpCode.Decompiler.CSharp
 				}
 				else
 				{
-					var translatedTarget = Translate(target, memberDeclaringType);
+					IType targetTypeHint = memberDeclaringType;
+					if (CallInstruction.ExpectedTypeForThisPointer(memberDeclaringType) == StackType.Ref)
+					{
+						if (target.ResultType == StackType.Ref)
+						{
+							targetTypeHint = new ByReferenceType(targetTypeHint);
+						}
+						else
+						{
+							targetTypeHint = new PointerType(targetTypeHint);
+						}
+					}
+					var translatedTarget = Translate(target, targetTypeHint);
 					if (CallInstruction.ExpectedTypeForThisPointer(memberDeclaringType) == StackType.Ref)
 					{
 						// When accessing members on value types, ensure we use a reference of the correct type,
@@ -2541,7 +2589,36 @@ namespace ICSharpCode.Decompiler.CSharp
 
 		protected internal override TranslatedExpression VisitLdObj(LdObj inst, TranslationContext context)
 		{
-			var result = LdObj(inst.Target, inst.Type);
+			IType loadType = inst.Type;
+			bool loadTypeUsedInGeneric = inst.UnalignedPrefix != 0 || inst.Target.ResultType == StackType.Ref;
+			if (context.TypeHint.Kind != TypeKind.Unknown
+				&& TypeUtils.IsCompatibleTypeForMemoryAccess(context.TypeHint, loadType)
+				&& !(loadTypeUsedInGeneric && context.TypeHint.Kind.IsAnyPointer()))
+			{
+				loadType = context.TypeHint;
+			}
+			if (inst.UnalignedPrefix != 0)
+			{
+				// Use one of: Unsafe.ReadUnaligned<T>(void*)
+				//         or: Unsafe.ReadUnaligned<T>(ref byte)
+				var pointer = Translate(inst.Target);
+				if (pointer.Expression is DirectionExpression)
+				{
+					pointer = pointer.ConvertTo(new ByReferenceType(compilation.FindType(KnownTypeCode.Byte)), this);
+				}
+				else
+				{
+					pointer = pointer.ConvertTo(new PointerType(compilation.FindType(KnownTypeCode.Void)), this, allowImplicitConversion: true);
+				}
+				return CallUnsafeIntrinsic(
+					name: "ReadUnaligned",
+					arguments: new Expression[] { pointer },
+					returnType: loadType,
+					inst: inst,
+					typeArguments: new IType[] { loadType }
+				);
+			}
+			var result = LdObj(inst.Target, loadType);
 			//if (target.Type.IsSmallIntegerType() && loadType.IsSmallIntegerType() && target.Type.GetSign() != loadType.GetSign())
 			//	return result.ConvertTo(loadType, this);
 			return result.WithILInstruction(inst);
@@ -2549,7 +2626,8 @@ namespace ICSharpCode.Decompiler.CSharp
 
 		ExpressionWithResolveResult LdObj(ILInstruction address, IType loadType)
 		{
-			var target = Translate(address);
+			IType addressTypeHint = address.ResultType == StackType.Ref ? new ByReferenceType(loadType) : (IType)new PointerType(loadType);
+			var target = Translate(address, typeHint: addressTypeHint);
 			if (TypeUtils.IsCompatiblePointerTypeForMemoryAccess(target.Type, loadType))
 			{
 				ExpressionWithResolveResult result;
@@ -2589,37 +2667,67 @@ namespace ICSharpCode.Decompiler.CSharp
 			else
 			{
 				// We need to cast the pointer type:
-				target = target.ConvertTo(new PointerType(loadType), this);
-				return new UnaryOperatorExpression(UnaryOperatorType.Dereference, target.Expression)
-					.WithRR(new ResolveResult(loadType));
+				if (target.Expression is DirectionExpression)
+				{
+					target = target.ConvertTo(new ByReferenceType(loadType), this);
+				}
+				else
+				{
+					target = target.ConvertTo(new PointerType(loadType), this);
+				}
+				if (target.Expression is DirectionExpression dirExpr)
+				{
+					return target.UnwrapChild(dirExpr.Expression);
+				}
+				else
+				{
+					return new UnaryOperatorExpression(UnaryOperatorType.Dereference, target.Expression)
+						.WithRR(new ResolveResult(loadType));
+				}
 			}
 		}
 
 		protected internal override TranslatedExpression VisitStObj(StObj inst, TranslationContext context)
 		{
-			var pointer = Translate(inst.Target);
+			if (inst.UnalignedPrefix != 0)
+			{
+				return UnalignedStObj(inst);
+			}
+
+			IType pointerTypeHint = inst.Target.ResultType == StackType.Ref ? new ByReferenceType(inst.Type) : (IType)new PointerType(inst.Type);
+			var pointer = Translate(inst.Target, typeHint: pointerTypeHint);
 			TranslatedExpression target;
 			TranslatedExpression value = default;
-			if (pointer.Expression is DirectionExpression && TypeUtils.IsCompatiblePointerTypeForMemoryAccess(pointer.Type, inst.Type))
+			// Cast pointer type if necessary:
+			if (!TypeUtils.IsCompatiblePointerTypeForMemoryAccess(pointer.Type, inst.Type))
+			{
+				value = Translate(inst.Value, typeHint: inst.Type);
+				IType castTargetType;
+				if (TypeUtils.IsCompatibleTypeForMemoryAccess(value.Type, inst.Type))
+				{
+					castTargetType = value.Type;
+				}
+				else
+				{
+					castTargetType = inst.Type;
+				}
+				if (pointer.Expression is DirectionExpression)
+				{
+					pointer = pointer.ConvertTo(new ByReferenceType(castTargetType), this);
+				}
+				else
+				{
+					pointer = pointer.ConvertTo(new PointerType(castTargetType), this);
+				}
+			}
+
+			if (pointer.Expression is DirectionExpression)
 			{
 				// we can deference the managed reference by stripping away the 'ref'
 				target = pointer.UnwrapChild(((DirectionExpression)pointer.Expression).Expression);
 			}
 			else
 			{
-				// Cast pointer type if necessary:
-				if (!TypeUtils.IsCompatiblePointerTypeForMemoryAccess(pointer.Type, inst.Type))
-				{
-					value = Translate(inst.Value, typeHint: inst.Type);
-					if (TypeUtils.IsCompatibleTypeForMemoryAccess(value.Type, inst.Type))
-					{
-						pointer = pointer.ConvertTo(new PointerType(value.Type), this);
-					}
-					else
-					{
-						pointer = pointer.ConvertTo(new PointerType(inst.Type), this);
-					}
-				}
 				if (pointer.Expression is UnaryOperatorExpression uoe && uoe.Operator == UnaryOperatorType.AddressOf)
 				{
 					// *&ptr -> ptr
@@ -2637,6 +2745,33 @@ namespace ICSharpCode.Decompiler.CSharp
 				value = Translate(inst.Value, typeHint: target.Type);
 			}
 			return Assignment(target, value).WithILInstruction(inst);
+		}
+
+		private TranslatedExpression UnalignedStObj(StObj inst)
+		{
+			// "unaligned.1; stobj" -> decompile to a call of
+			//    Unsafe.WriteUnaligned<T>(void*, T)
+			// or Unsafe.WriteUnaligned<T>(ref byte, T)
+			var pointer = Translate(inst.Target);
+			var value = Translate(inst.Value, typeHint: inst.Type);
+			if (pointer.Expression is DirectionExpression)
+			{
+				pointer = pointer.ConvertTo(new ByReferenceType(compilation.FindType(KnownTypeCode.Byte)), this);
+			}
+			else
+			{
+				pointer = pointer.ConvertTo(new PointerType(compilation.FindType(KnownTypeCode.Void)), this, allowImplicitConversion: true);
+			}
+			if (!TypeUtils.IsCompatibleTypeForMemoryAccess(value.Type, inst.Type))
+			{
+				value = value.ConvertTo(inst.Type, this);
+			}
+			return CallUnsafeIntrinsic(
+				name: "WriteUnaligned",
+				arguments: new Expression[] { pointer, value },
+				returnType: compilation.FindType(KnownTypeCode.Void),
+				inst: inst
+			);
 		}
 
 		protected internal override TranslatedExpression VisitLdLen(LdLen inst, TranslationContext context)
@@ -3492,7 +3627,7 @@ namespace ICSharpCode.Decompiler.CSharp
 					.ConvertTo(
 						typeSystem.FindType(KnownTypeCode.String),
 						this,
-						allowImplicitConversion: true
+						allowImplicitConversion: false // switch-expression does not support implicit conversions
 					);
 			}
 			else
