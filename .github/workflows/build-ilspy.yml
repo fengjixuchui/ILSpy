@@ -39,10 +39,14 @@ jobs:
         submodules: true
         fetch-depth: 0
 
-    - name: Setup .NET Core
+    - name: Setup .NET Core 3.1
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: '3.1.x'
+    - name: Setup .NET 5.0
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '5.0.x'
 
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
@@ -76,9 +80,6 @@ jobs:
 
     - name: Style - tab check
       run: python BuildTools\tidy.py
-
-    - name: Style - dotnet-format check
-      run: dotnet-format --check --verbosity diagnostic ILSpy.sln
     
     - name: Zip ILSpy Release
       if: matrix.channel == 'zip'
