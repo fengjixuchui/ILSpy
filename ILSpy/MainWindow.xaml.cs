@@ -52,8 +52,6 @@ using ICSharpCode.TreeView;
 
 using Microsoft.Win32;
 
-using OSVersionHelper;
-
 namespace ICSharpCode.ILSpy
 {
 	class MainWindowDataContext
@@ -113,7 +111,8 @@ namespace ICSharpCode.ILSpy
 			this.sessionSettings = new SessionSettings(spySettings);
 			this.AssemblyListManager = new AssemblyListManager(spySettings);
 
-			this.Icon = new BitmapImage(new Uri("pack://application:,,,/ILSpy;component/images/ILSpy.ico"));
+			// Make sure Images are initialized on the UI thread.
+			this.Icon = Images.ILSpyIcon;
 
 			this.DataContext = new MainWindowDataContext {
 				Workspace = DockWorkspace.Instance,
@@ -122,7 +121,10 @@ namespace ICSharpCode.ILSpy
 			};
 
 			AssemblyListManager.CreateDefaultAssemblyLists();
-
+			if (!string.IsNullOrEmpty(sessionSettings.CurrentCulture))
+			{
+				System.Threading.Thread.CurrentThread.CurrentUICulture = new System.Globalization.CultureInfo(sessionSettings.CurrentCulture);
+			}
 			DockWorkspace.Instance.LoadSettings(sessionSettings);
 			InitializeComponent();
 			InitToolPanes();
@@ -138,9 +140,19 @@ namespace ICSharpCode.ILSpy
 
 		private void SessionSettings_PropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
-			if (e.PropertyName == "ActiveAssemblyList")
+			switch (e.PropertyName)
 			{
-				ShowAssemblyList(sessionSettings.ActiveAssemblyList);
+				case nameof(SessionSettings.ActiveAssemblyList):
+					ShowAssemblyList(sessionSettings.ActiveAssemblyList);
+					break;
+				case nameof(SessionSettings.IsDarkMode):
+					// update syntax highlighting and force reload (AvalonEdit does not automatically refresh on highlighting change)
+					DecompilerTextView.RegisterHighlighting();
+					DecompileSelectedNodes(DockWorkspace.Instance.ActiveTabPage.GetState() as DecompilerTextViewState);
+					break;
+				case nameof(SessionSettings.CurrentCulture):
+					MessageBox.Show(Properties.Resources.SettingsChangeRestartRequired, "ILSpy");
+					break;
 			}
 		}
 
@@ -191,6 +203,7 @@ namespace ICSharpCode.ILSpy
 		Button MakeToolbarItem(Lazy<ICommand, IToolbarCommandMetadata> command)
 		{
 			return new Button {
+				Style = ThemeManager.Current.CreateToolBarButtonStyle(),
 				Command = CommandWrapper.Unwrap(command.Value),
 				ToolTip = Properties.Resources.ResourceManager.GetString(command.Metadata.ToolTip),
 				Tag = command.Metadata.Tag,
@@ -679,7 +692,7 @@ namespace ICSharpCode.ILSpy
 		public async Task ShowMessageIfUpdatesAvailableAsync(ILSpySettings spySettings, bool forceCheck = false)
 		{
 			// Don't check for updates if we're in an MSIX since they work differently
-			if (WindowsVersionHelper.HasPackageIdentity)
+			if (StorePackageHelper.HasPackageIdentity)
 			{
 				return;
 			}
@@ -1039,7 +1052,11 @@ namespace ICSharpCode.ILSpy
 					break;
 				case EntityReference unresolvedEntity:
 					string protocol = unresolvedEntity.Protocol ?? "decompile";
-					PEFile file = unresolvedEntity.Module;
+					PEFile file = unresolvedEntity.ResolveAssembly(assemblyList);
+					if (file == null)
+					{
+						break;
+					}
 					if (protocol != "decompile")
 					{
 						var protocolHandlers = App.ExportProvider.GetExports<IProtocolHandler>();

@@ -98,7 +98,7 @@ namespace ICSharpCode.ILSpy
 			this.shortName = Path.GetFileNameWithoutExtension(fileName);
 		}
 
-		public LoadedAssembly(LoadedAssembly bundle, string fileName, Task<Stream?>? stream, IAssemblyResolver assemblyResolver = null)
+		public LoadedAssembly(LoadedAssembly bundle, string fileName, Task<Stream?>? stream, IAssemblyResolver? assemblyResolver = null)
 			: this(bundle.assemblyList, fileName, stream, assemblyResolver)
 		{
 			this.ParentBundle = bundle;
@@ -114,6 +114,12 @@ namespace ICSharpCode.ILSpy
 		{
 			var assembly = await GetPEFileAsync().ConfigureAwait(false);
 			return assembly.DetectTargetFrameworkId() ?? string.Empty;
+		}
+
+		public async Task<string> GetRuntimePackAsync()
+		{
+			var assembly = await GetPEFileAsync().ConfigureAwait(false);
+			return assembly.DetectRuntimePack() ?? string.Empty;
 		}
 
 		public ReferenceLoadInfo LoadedAssemblyReferencesInfo { get; } = new ReferenceLoadInfo();
@@ -614,6 +620,7 @@ namespace ICSharpCode.ILSpy
 		{
 			return LazyInitializer.EnsureInitialized(ref this.universalResolver, () => {
 				var targetFramework = this.GetTargetFrameworkIdAsync().Result;
+				var runtimePack = this.GetRuntimePackAsync().Result;
 
 				var readerOptions = DecompilerSettingsPanel.CurrentDecompilerSettings.ApplyWindowsRuntimeProjections
 					? MetadataReaderOptions.ApplyWindowsRuntimeProjections
@@ -622,7 +629,7 @@ namespace ICSharpCode.ILSpy
 				var rootedPath = Path.IsPathRooted(this.FileName) ? this.FileName : null;
 
 				return new UniversalAssemblyResolver(rootedPath, throwOnError: false, targetFramework,
-					PEStreamOptions.PrefetchEntireImage, readerOptions);
+					runtimePack, PEStreamOptions.PrefetchEntireImage, readerOptions);
 			})!;
 		}
 

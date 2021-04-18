@@ -87,7 +87,7 @@ namespace ICSharpCode.ILSpy.TreeNodes
 				{
 					if (LoadedAssembly.HasLoadError)
 						return Images.AssemblyWarning;
-					var loadResult = LoadedAssembly.GetLoadResultAsync().Result;
+					var loadResult = LoadedAssembly.GetLoadResultAsync().GetAwaiter().GetResult();
 					if (loadResult.Package != null)
 					{
 						return loadResult.Package.Kind switch
@@ -174,21 +174,28 @@ namespace ICSharpCode.ILSpy.TreeNodes
 			LoadedAssembly.LoadResult loadResult;
 			try
 			{
-				loadResult = LoadedAssembly.GetLoadResultAsync().Result;
+				loadResult = LoadedAssembly.GetLoadResultAsync().GetAwaiter().GetResult();
 			}
 			catch
 			{
 				// if we crashed on loading, then we don't have any children
 				return;
 			}
-			if (loadResult.PEFile != null)
+			try
 			{
-				LoadChildrenForPEFile(loadResult.PEFile);
+				if (loadResult.PEFile != null)
+				{
+					LoadChildrenForPEFile(loadResult.PEFile);
+				}
+				else if (loadResult.Package != null)
+				{
+					var package = loadResult.Package;
+					this.Children.AddRange(PackageFolderTreeNode.LoadChildrenForFolder(package.RootFolder));
+				}
 			}
-			else if (loadResult.Package != null)
+			catch (Exception ex)
 			{
-				var package = loadResult.Package;
-				this.Children.AddRange(PackageFolderTreeNode.LoadChildrenForFolder(package.RootFolder));
+				App.UnhandledException(ex);
 			}
 		}
 
@@ -198,9 +205,10 @@ namespace ICSharpCode.ILSpy.TreeNodes
 			var assembly = (MetadataModule)typeSystem.MainModule;
 			this.Children.Add(new Metadata.MetadataTreeNode(module, this));
 			Decompiler.DebugInfo.IDebugInfoProvider debugInfo = LoadedAssembly.GetDebugInfoOrNull();
-			if (debugInfo is Decompiler.PdbProvider.PortableDebugInfoProvider ppdb)
+			if (debugInfo is Decompiler.PdbProvider.PortableDebugInfoProvider ppdb
+				&& ppdb.GetMetadataReader() is System.Reflection.Metadata.MetadataReader reader)
 			{
-				this.Children.Add(new Metadata.DebugMetadataTreeNode(module, ppdb.IsEmbedded, ppdb.Provider.GetMetadataReader(), this));
+				this.Children.Add(new Metadata.DebugMetadataTreeNode(module, ppdb.IsEmbedded, reader, this));
 			}
 			this.Children.Add(new ReferenceFolderTreeNode(module, this));
 			if (module.Resources.Any())
@@ -539,7 +547,7 @@ namespace ICSharpCode.ILSpy.TreeNodes
 				if (!loadedAssm.HasLoadError)
 				{
 					loadedAssm.IsAutoLoaded = false;
-					node.RaisePropertyChanged(nameof(node.Foreground));
+					node.RaisePropertyChanged(nameof(ILSpyTreeNode.IsAutoLoaded));
 				}
 			}
 			MainWindow.Instance.CurrentAssemblyList.RefreshSave();
